@@ -61,7 +61,27 @@ const translations: Record<Language, Record<string, string>> = {
     admitBack: 'Admit Back to Line',
     noHeldPatients: 'No patients currently on hold. Queue is running smoothly.',
     reclaimedNotice: 'Queue position restored 2 slots behind currently serving with elevated priority.',
-    elevatedPriority: 'Elevated Priority'
+    elevatedPriority: 'Elevated Priority',
+
+    // Get New Token Modal Form
+    modalGetTokenTitle: 'Get New Digital Queue Token',
+    modalGetTokenSub: 'Enter patient details to issue an instant token and track your queue live',
+    patientName: 'Patient Full Name',
+    patientNamePlaceholder: 'e.g. Aarav Sharma',
+    patientAge: 'Age (Years)',
+    patientGender: 'Gender',
+    genderMale: 'Male',
+    genderFemale: 'Female',
+    genderOther: 'Other',
+    selectDepartment: 'Select Department / Room',
+    emergencyBypass: 'Emergency / Casualty Case (Critical Patient)',
+    emergencyBypassWarning: 'EMERGENCY NOTICE: Critical or emergency cases do NOT take standard queue tokens. Please proceed directly to Casualty Room 1 (Ground Floor, Red Corridor) immediately.',
+    goToEmergency: 'Proceed to Emergency Casualty',
+    issueTokenBtn: 'Issue Token & Track Position',
+    cancelBtn: 'Cancel',
+    opdDeptLabel: 'General Medicine OPD',
+    labDeptLabel: 'Pathology & Blood Lab',
+    pharmacyDeptLabel: 'Pharmacy Dispensing'
   },
   hi: {
     // Navigation
@@ -113,7 +133,27 @@ const translations: Record<Language, Record<string, string>> = {
     admitBack: 'कतार में वापस लें',
     noHeldPatients: 'वर्तमान में कोई मरीज होल्ड पर नहीं है। कतार सामान्य रूप से चल रही है।',
     reclaimedNotice: 'कतार स्थिति बहाल: वर्तमान सेवा टोकन के 2 स्थान पीछे उच्च प्राथमिकता के साथ जोड़ा गया।',
-    elevatedPriority: 'उच्च प्राथमिकता'
+    elevatedPriority: 'उच्च प्राथमिकता',
+
+    // Get New Token Modal Form
+    modalGetTokenTitle: 'नया डिजिटल कतार टोकन प्राप्त करें',
+    modalGetTokenSub: 'तत्काल टोकन प्राप्त करने और अपनी बारी लाइव ट्रैक करने के लिए मरीज का विवरण दर्ज करें',
+    patientName: 'मरीज का पूरा नाम',
+    patientNamePlaceholder: 'उदा. राहुल कुमार',
+    patientAge: 'उम्र (वर्ष)',
+    patientGender: 'लिंग',
+    genderMale: 'पुरुष',
+    genderFemale: 'महिला',
+    genderOther: 'अन्य',
+    selectDepartment: 'विभाग / कमरा चुनें',
+    emergencyBypass: 'आपातकालीन / कैजुअल्टी केस (गंभीर स्थिति)',
+    emergencyBypassWarning: 'आपातकालीन सूचना: गंभीर अथवा आपातकालीन मामलों के लिए कतार टोकन नहीं लिया जाता। कृपया सीधे कैजुअल्टी रूम 1 (भूतल, रेड कॉरिडोर) में तुरंत जाएं।',
+    goToEmergency: 'आपातकालीन कैजुअल्टी में जाएं',
+    issueTokenBtn: 'टोकन प्राप्त करें एवं ट्रैक करें',
+    cancelBtn: 'रद्द करें',
+    opdDeptLabel: 'सामान्य चिकित्सा ओपीडी (कमरा 104)',
+    labDeptLabel: 'पैथोलॉजी एवं ब्लड लैब (हॉल A)',
+    pharmacyDeptLabel: 'दवा वितरण केंद्र (काउंटर 1 व 2)'
   }
 };
 

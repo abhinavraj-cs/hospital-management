@@ -27,7 +27,9 @@ import {
   PauseCircle,
   RotateCcw,
   Zap,
-  Inbox
+  Inbox,
+  User,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueueTrackerStore, DepartmentQueue } from '../queues/queueTrackerStore';
@@ -47,6 +49,7 @@ export function Dashboard() {
     departments,
     heldTokens,
     reclaimedTokens,
+    patientRegistrations,
     logs,
     isAnnouncing,
     trackToken,
@@ -64,6 +67,14 @@ export function Dashboard() {
   const [inputToken, setInputToken] = useState(userToken);
   const [showTokenReceipt, setShowTokenReceipt] = useState(false);
   const [issuedTokenInfo, setIssuedTokenInfo] = useState<string | null>(null);
+
+  // New Token Form Modal State
+  const [showNewTokenModal, setShowNewTokenModal] = useState(false);
+  const [newPatientName, setNewPatientName] = useState('');
+  const [newPatientAge, setNewPatientAge] = useState('32');
+  const [newPatientGender, setNewPatientGender] = useState<'Male' | 'Female' | 'Other'>('Male');
+  const [newSelectedDept, setNewSelectedDept] = useState('opd');
+  const [isEmergencyBypass, setIsEmergencyBypass] = useState(false);
 
   const isHi = language === 'hi';
   const currentDept: DepartmentQueue = departments[selectedDeptId] || departments.opd;
@@ -146,16 +157,49 @@ export function Dashboard() {
     }
   };
 
-  // Handle Get New Token
-  const handleGetNewToken = (deptId: string = 'opd') => {
-    const newToken = generateNewToken(deptId);
+  // Open the Get New Token Form Modal
+  const handleOpenNewTokenModal = (deptId: string = 'opd') => {
+    setNewSelectedDept(deptId || selectedDeptId || 'opd');
+    setIsEmergencyBypass(false);
+    setShowNewTokenModal(true);
+  };
+
+  // Handle Form Submission from the Get New Token Modal
+  const handleCreateTokenSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isEmergencyBypass) {
+      setShowNewTokenModal(false);
+      navigate('/emergency');
+      return;
+    }
+
+    if (!newPatientName.trim()) {
+      toast.error(isHi ? 'कृपया मरीज का नाम दर्ज करें' : 'Please enter patient name');
+      return;
+    }
+
+    const ageNum = parseInt(newPatientAge, 10);
+    if (isNaN(ageNum) || ageNum < 1 || ageNum > 120) {
+      toast.error(isHi ? 'कृपया वैध उम्र दर्ज करें (1 - 120)' : 'Please enter a valid age (1 - 120)');
+      return;
+    }
+
+    const targetDept = newSelectedDept || 'opd';
+    const newToken = generateNewToken(targetDept, {
+      name: newPatientName.trim(),
+      age: ageNum,
+      gender: newPatientGender,
+    });
+
     setInputToken(newToken);
     setIssuedTokenInfo(newToken);
+    setShowNewTokenModal(false);
     setShowTokenReceipt(true);
+
     toast.success(
       isHi
-        ? `नया टोकन जारी: ${newToken}`
-        : `New Token Issued: ${newToken}`
+        ? `नया टोकन जारी: ${newToken} (${newPatientName})`
+        : `New Token Issued: ${newToken} for ${newPatientName}`
     );
   };
 
@@ -458,7 +502,7 @@ export function Dashboard() {
             {/* Main Action Button 2: Get New Token - Deep Teal (#1B8B8E) pill/button */}
             <button
               type="button"
-              onClick={() => handleGetNewToken(selectedDeptId)}
+              onClick={() => handleOpenNewTokenModal(selectedDeptId)}
               className="bg-[#1B8B8E] hover:bg-[#146B6E] text-white font-bold px-5 py-3.5 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 shrink-0"
             >
               <PlusCircle className="h-5 w-5" />
@@ -1049,6 +1093,11 @@ export function Dashboard() {
                 <span className="text-3xl font-bold font-mono tracking-tight text-white block">
                   {userToken}
                 </span>
+                {patientRegistrations[userToken] && (
+                  <span className="text-xs font-semibold text-white/90 truncate block mt-1">
+                    👤 {patientRegistrations[userToken].name} ({patientRegistrations[userToken].age}y, {patientRegistrations[userToken].gender})
+                  </span>
+                )}
                 <span className="inline-block mt-2 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20">
                   {isHeld
                     ? '⏸️ ON HOLD'
@@ -1500,6 +1549,218 @@ export function Dashboard() {
         </div>
       </div>
 
+      {/* ─── Requirement: Get New Token Patient Registration Modal Form ─── */}
+      <AnimatePresence>
+        {showNewTokenModal && (
+          <div className="fixed inset-0 bg-[#111111]/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 15 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-[#A6DEF7] my-8 relative"
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => setShowNewTokenModal(false)}
+                className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-[#111111] hover:bg-slate-100 transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              {/* Modal Header */}
+              <div className="flex items-center gap-3.5 mb-5 pb-4 border-b border-slate-100">
+                <div className="p-3 bg-[#1B8B8E]/15 text-[#1B8B8E] rounded-2xl border border-[#1B8B8E]/30 shrink-0">
+                  <PlusCircle className="h-6 w-6 text-[#1B8B8E]" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-[#111111]">
+                    {t('modalGetTokenTitle')}
+                  </h3>
+                  <p className="text-xs text-[#4B5563] font-normal mt-0.5">
+                    {t('modalGetTokenSub')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Form Content */}
+              <form onSubmit={handleCreateTokenSubmit} className="space-y-4">
+                {/* Emergency Case Bypass Checkbox */}
+                <div className={`p-3.5 rounded-2xl border transition-all ${
+                  isEmergencyBypass
+                    ? 'bg-red-50 border-red-300 ring-2 ring-red-400'
+                    : 'bg-[#F8FAFC] border-slate-200 hover:border-slate-300'
+                }`}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isEmergencyBypass}
+                      onChange={(e) => setIsEmergencyBypass(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded text-red-600 focus:ring-red-500 border-slate-300 cursor-pointer"
+                    />
+                    <div>
+                      <span className="font-bold text-xs text-[#111111] flex items-center gap-1.5">
+                        <ShieldAlert className="h-4 w-4 text-[#DC2626]" />
+                        {t('emergencyBypass')}
+                      </span>
+                      <p className="text-[11px] text-[#4B5563] mt-0.5 font-normal">
+                        {isHi
+                          ? 'यदि मरीज की स्थिति गंभीर है, तो कतार टोकन न लें और तुरंत आपातकालीन वार्ड जाएं।'
+                          : 'Immediate priority triage for severe traumas, chest pain, or acute emergencies.'}
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Immediate Emergency Warning Box */}
+                  {isEmergencyBypass && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-3 pt-3 border-t border-red-200"
+                    >
+                      <p className="text-xs font-bold text-red-700 leading-snug">
+                        {t('emergencyBypassWarning')}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewTokenModal(false);
+                          navigate('/emergency');
+                        }}
+                        className="mt-2.5 w-full bg-[#DC2626] hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-colors active:scale-98"
+                      >
+                        <ShieldAlert className="h-4 w-4" />
+                        <span>{t('goToEmergency')}</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+
+                {!isEmergencyBypass && (
+                  <>
+                    {/* Patient Name */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#111111] uppercase tracking-wider mb-1.5">
+                        {t('patientName')} <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={newPatientName}
+                          onChange={(e) => setNewPatientName(e.target.value)}
+                          placeholder={t('patientNamePlaceholder')}
+                          className="w-full pl-10 pr-3 py-2.5 bg-white border border-[#A6DEF7] rounded-xl text-sm font-semibold text-[#111111] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1B8B8E] focus:border-transparent transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Patient Age and Gender Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-[#111111] uppercase tracking-wider mb-1.5">
+                          {t('patientAge')} <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="120"
+                          required
+                          value={newPatientAge}
+                          onChange={(e) => setNewPatientAge(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-white border border-[#A6DEF7] rounded-xl text-sm font-semibold text-[#111111] focus:outline-none focus:ring-2 focus:ring-[#1B8B8E] focus:border-transparent transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#111111] uppercase tracking-wider mb-1.5">
+                          {t('patientGender')}
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {(['Male', 'Female', 'Other'] as const).map((genderVal) => (
+                            <button
+                              key={genderVal}
+                              type="button"
+                              onClick={() => setNewPatientGender(genderVal)}
+                              className={`py-2 px-1 text-xs font-bold rounded-xl border text-center transition-all ${
+                                newPatientGender === genderVal
+                                  ? 'bg-[#1B8B8E] text-white border-[#1B8B8E] shadow-2xs'
+                                  : 'bg-white hover:bg-[#F0F9FD] text-[#111111] border-slate-200'
+                              }`}
+                            >
+                              {genderVal === 'Male'
+                                ? t('genderMale')
+                                : genderVal === 'Female'
+                                ? t('genderFemale')
+                                : t('genderOther')}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Select Department */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#111111] uppercase tracking-wider mb-1.5">
+                        {t('selectDepartment')}
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        {[
+                          { id: 'opd', label: isHi ? departments.opd.name.hi : departments.opd.name.en, room: departments.opd.room.en, wait: `${(departments.opd?.waitingCount || 0) * 3 + (departments.opd?.delayMinutes || 0)}m` },
+                          { id: 'lab', label: isHi ? departments.lab.name.hi : departments.lab.name.en, room: departments.lab.room.en, wait: `${(departments.lab?.waitingCount || 0) * 2.5 + (departments.lab?.delayMinutes || 0)}m` },
+                          { id: 'pharmacy', label: isHi ? departments.pharmacy.name.hi : departments.pharmacy.name.en, room: departments.pharmacy.room.en, wait: `${Math.round((departments.pharmacy?.waitingCount || 0) * 1.5) + (departments.pharmacy?.delayMinutes || 0)}m` },
+                        ].map((dept) => (
+                          <button
+                            key={dept.id}
+                            type="button"
+                            onClick={() => setNewSelectedDept(dept.id)}
+                            className={`p-3 rounded-2xl border text-left transition-all ${
+                              newSelectedDept === dept.id
+                                ? 'bg-[#F0F9FD] border-[#1B8B8E] ring-2 ring-[#1B8B8E]/40'
+                                : 'bg-white hover:bg-slate-50 border-slate-200'
+                            }`}
+                          >
+                            <span className="block text-xs font-bold text-[#111111] leading-tight">
+                              {dept.label}
+                            </span>
+                            <span className="block text-[10px] text-slate-500 font-medium mt-0.5">
+                              {dept.room}
+                            </span>
+                            <span className="inline-block mt-2 text-[10px] bg-slate-100 text-[#3E36B0] font-mono font-bold px-1.5 py-0.5 rounded-md">
+                              ~{dept.wait} wait
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Modal Footer Actions */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewTokenModal(false)}
+                    className="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-[#4B5563] hover:bg-slate-100 transition-colors"
+                  >
+                    {t('cancelBtn')}
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#1B8B8E] hover:bg-[#146B6E] text-white font-bold px-6 py-2.5 rounded-xl text-xs transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    <span>{t('issueTokenBtn')}</span>
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ─── Digital Token Receipt Modal (When user clicks "+ Get New Token") ─── */}
       <AnimatePresence>
         {showTokenReceipt && (
@@ -1515,31 +1776,51 @@ export function Dashboard() {
               </div>
 
               <span className="text-xs font-bold text-[#1B8B8E] uppercase tracking-widest block mb-1">
-                DIGITAL QUEUE PASS ISSUED
+                {isHi ? 'डिजिटल कतार पास जारी' : 'DIGITAL QUEUE PASS ISSUED'}
               </span>
               <h3 className="text-3xl font-bold font-mono text-[#111111]">
                 {issuedTokenInfo}
               </h3>
               <p className="text-xs text-[#4B5563] font-normal mt-1">
-                GMERS Medical College • {currentDept.name.en}
+                GMERS Medical College • {isHi ? currentDept.name.hi : currentDept.name.en}
               </p>
 
-              <div className="bg-[#F8FAFC] border border-[#A6DEF7]/60 rounded-2xl p-4 my-5 text-left text-xs space-y-2.5">
+              {/* Patient Badge if registered */}
+              {issuedTokenInfo && patientRegistrations[issuedTokenInfo] && (
+                <div className="bg-[#F0F9FD] border border-[#A6DEF7] rounded-2xl p-3 my-3 text-left">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-[#3E36B0] uppercase tracking-wider">
+                      {isHi ? 'मरीज विवरण' : 'Patient Information'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {patientRegistrations[issuedTokenInfo].registeredAt}
+                    </span>
+                  </div>
+                  <p className="font-bold text-sm text-[#111111] mt-0.5">
+                    {patientRegistrations[issuedTokenInfo].name}
+                  </p>
+                  <p className="text-xs text-[#4B5563] font-medium">
+                    {patientRegistrations[issuedTokenInfo].age} {isHi ? 'वर्ष' : 'yrs'} • {patientRegistrations[issuedTokenInfo].gender}
+                  </p>
+                </div>
+              )}
+
+              <div className="bg-[#F8FAFC] border border-[#A6DEF7]/60 rounded-2xl p-4 my-4 text-left text-xs space-y-2.5">
                 <div className="flex justify-between">
-                  <span className="text-[#4B5563] font-normal">Room:</span>
-                  <span className="font-bold text-[#111111]">{currentDept.room.en}</span>
+                  <span className="text-[#4B5563] font-normal">{isHi ? 'कमरा:' : 'Room:'}</span>
+                  <span className="font-bold text-[#111111]">{isHi ? currentDept.room.hi : currentDept.room.en}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#4B5563] font-normal">Now Serving:</span>
+                  <span className="text-[#4B5563] font-normal">{isHi ? 'वर्तमान सेवा:' : 'Now Serving:'}</span>
                   <span className="font-bold text-[#1B8B8E]">{currentDept.prefix}-{currentDept.nowServing}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#4B5563] font-normal">Patients Ahead:</span>
-                  <span className="font-bold text-[#111111]">{tokensAhead} patients</span>
+                  <span className="text-[#4B5563] font-normal">{isHi ? 'मरीज आगे:' : 'Patients Ahead:'}</span>
+                  <span className="font-bold text-[#111111]">{tokensAhead} {isHi ? 'मरीज' : 'patients'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#4B5563] font-normal">Estimated Wait:</span>
-                  <span className="font-bold text-[#111111]">~{dynamicWaitTime} mins</span>
+                  <span className="text-[#4B5563] font-normal">{isHi ? 'अनुमानित समय:' : 'Estimated Wait:'}</span>
+                  <span className="font-bold text-[#111111]">~{dynamicWaitTime} {isHi ? 'मिनट' : 'mins'}</span>
                 </div>
               </div>
 
@@ -1551,13 +1832,13 @@ export function Dashboard() {
                   }}
                   className="flex-1 bg-[#002BFF] hover:bg-[#0022CC] text-white font-bold py-3 rounded-2xl text-xs transition-colors shadow-sm"
                 >
-                  🔊 Hear Status
+                  🔊 {isHi ? 'स्थिति सुनें' : 'Hear Status'}
                 </button>
                 <button
                   onClick={() => setShowTokenReceipt(false)}
                   className="flex-1 bg-[#3E36B0] hover:bg-[#302991] text-white font-bold py-3 rounded-2xl text-xs transition-colors shadow-sm"
                 >
-                  Done
+                  {isHi ? 'संपन्न' : 'Done'}
                 </button>
               </div>
             </motion.div>

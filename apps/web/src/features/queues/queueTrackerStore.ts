@@ -37,6 +37,15 @@ export interface HeldToken {
   originalServingNum: number;
 }
 
+export interface PatientRegistration {
+  name: string;
+  age: number;
+  gender: string;
+  deptId: string;
+  tokenCode: string;
+  registeredAt: string;
+}
+
 interface QueueTrackerState {
   roleView: RoleViewMode;
   language: LanguageCode;
@@ -45,6 +54,7 @@ interface QueueTrackerState {
   departments: Record<string, DepartmentQueue>;
   heldTokens: HeldToken[];
   reclaimedTokens: Record<string, { reclaimSlot: number; priority: string; originalNum: number }>;
+  patientRegistrations: Record<string, PatientRegistration>;
   logs: QueueLogEntry[];
   isAnnouncing: boolean;
   lastAnnouncement: string;
@@ -55,7 +65,7 @@ interface QueueTrackerState {
   setSelectedDept: (deptId: string) => void;
   setUserToken: (token: string) => void;
   trackToken: (tokenInput: string) => boolean;
-  generateNewToken: (deptId?: string) => string;
+  generateNewToken: (deptId?: string, patientInfo?: { name: string; age: number; gender: string }) => string;
   callNextToken: () => void;
   markConsultationDone: () => void;
   markNoShow: () => void;
@@ -178,6 +188,16 @@ export const useQueueTrackerStore = create<QueueTrackerState>()(
         },
       ],
       reclaimedTokens: {},
+      patientRegistrations: {
+        'OPD-104': {
+          name: 'Aarav Sharma',
+          age: 32,
+          gender: 'Male',
+          deptId: 'opd',
+          tokenCode: 'OPD-104',
+          registeredAt: '12:05 PM',
+        },
+      },
       isAnnouncing: false,
       lastAnnouncement: '',
       logs: [
@@ -234,17 +254,31 @@ export const useQueueTrackerStore = create<QueueTrackerState>()(
         return true;
       },
 
-      generateNewToken: (deptId = 'opd') => {
+      generateNewToken: (deptId = 'opd', patientInfo?: { name: string; age: number; gender: string }) => {
         const state = get();
         const dept = state.departments[deptId] || state.departments.opd;
         const nextNum = dept.nowServing + dept.waitingCount + 1;
         const newToken = `${dept.prefix}-${nextNum}`;
+        const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const regEntry: PatientRegistration = {
+          name: patientInfo?.name?.trim() || 'Walk-in Patient',
+          age: patientInfo?.age || 30,
+          gender: patientInfo?.gender || 'Other',
+          deptId,
+          tokenCode: newToken,
+          registeredAt: timeNow,
+        };
 
         set((s) => {
-          const currentDept = s.departments[deptId];
+          const currentDept = s.departments[deptId] || s.departments.opd;
           return {
             userToken: newToken,
             selectedDeptId: deptId,
+            patientRegistrations: {
+              ...(s.patientRegistrations || {}),
+              [newToken]: regEntry,
+            },
             departments: {
               ...s.departments,
               [deptId]: {
@@ -255,8 +289,10 @@ export const useQueueTrackerStore = create<QueueTrackerState>()(
             logs: [
               {
                 id: 'log-' + Date.now(),
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                message: `New digital token issued: ${newToken} (${dept.name.en})`,
+                time: timeNow,
+                message: patientInfo?.name
+                  ? `New digital token issued: ${newToken} for ${regEntry.name} (${regEntry.age}y, ${regEntry.gender}) - ${dept.name.en}`
+                  : `New digital token issued: ${newToken} (${dept.name.en})`,
                 type: 'new',
               },
               ...s.logs.slice(0, 19),
@@ -265,6 +301,24 @@ export const useQueueTrackerStore = create<QueueTrackerState>()(
         });
 
         playHospitalDingDong();
+
+        if ('speechSynthesis' in window) {
+          const isHi = state.language === 'hi';
+          const announcement = isHi
+            ? `नया टोकन ${newToken} जारी किया गया है। मरीज ${regEntry.name}, अनुमानित प्रतीक्षा समय लगभग ${(dept.waitingCount + 1) * dept.avgTimePerPatient} मिनट है।`
+            : `New token ${newToken} successfully issued for patient ${regEntry.name}. Estimated wait time is approximately ${(dept.waitingCount + 1) * dept.avgTimePerPatient} minutes.`;
+
+          setTimeout(() => {
+            try {
+              window.speechSynthesis.cancel();
+              const utt = new SpeechSynthesisUtterance(announcement);
+              utt.lang = isHi ? 'hi-IN' : 'en-US';
+              utt.rate = 0.95;
+              window.speechSynthesis.speak(utt);
+            } catch {}
+          }, 450);
+        }
+
         return newToken;
       },
 
